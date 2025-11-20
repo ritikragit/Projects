@@ -9,4 +9,4 @@ def summarize_website(url: str):
     print(summarize_text(text))
 
 if __name__ == "__main__":
-    summarize_website("https://edwarddonner.com")
+    summarize_website("https://xyz.com")
