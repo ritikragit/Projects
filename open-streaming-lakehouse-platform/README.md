@@ -17,7 +17,7 @@ open-streaming-lakehouse-platform/
 │       └── requirements.txt
 ├── configs/
 ├── scripts/
-├── .env
+├── .env.example
 ├── .gitignore
 ├── README.md
 └── Makefile
@@ -25,15 +25,19 @@ open-streaming-lakehouse-platform/
 
 ## Quick start
 
-1. Start Kafka:
+1. (Optional) create a local override file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Start Kafka:
    ```bash
    docker compose -f docker/docker-compose.yml up -d
    ```
-2. Install producer dependencies:
+3. Install producer dependencies:
    ```bash
    pip install -r services/producer/requirements.txt
    ```
-3. Run producer:
+4. Run producer:
    ```bash
    python services/producer/producer.py
    ```
@@ -76,7 +80,7 @@ buffer.jsonl
 - `.DS_Store`: excludes macOS finder metadata.
 - `buffer.jsonl`: excludes runtime failure-buffer data from version control.
 
-### 2) `.env`
+### 2) `.env.example`
 
 ```env
 KAFKA_BOOTSTRAP=localhost:9092
@@ -92,13 +96,8 @@ ALLOW_PLAINTEXT_LISTENER=yes
 
 - `KAFKA_BOOTSTRAP=localhost:9092`: gives clients the broker endpoint from host machine.
 - blank line: separates app-level variable from broker internals for readability.
-- `KAFKA_CFG_NODE_ID=1`: sets broker node ID.
-- `KAFKA_CFG_PROCESS_ROLES=broker,controller`: runs single-node KRaft broker+controller.
-- `KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093`: defines controller quorum for node 1.
-- `KAFKA_CFG_LISTENERS=...`: opens broker and controller listener ports inside container.
-- `KAFKA_CFG_ADVERTISED_LISTENERS=...`: tells clients how to reach broker from host.
-- `KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER`: marks the controller listener name.
-- `ALLOW_PLAINTEXT_LISTENER=yes`: allows plaintext mode for local/dev simplicity.
+- Remaining keys define Kafka single-node KRaft defaults for local development.
+- Copy this file to `.env` to override defaults without editing tracked files.
 
 ### 3) `docker/docker-compose.yml`
 
@@ -112,7 +111,16 @@ services:
     ports:
       - "9092:9092"
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
+    environment:
+      KAFKA_CFG_NODE_ID: ${KAFKA_CFG_NODE_ID:-1}
+      KAFKA_CFG_PROCESS_ROLES: ${KAFKA_CFG_PROCESS_ROLES:-broker,controller}
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: ${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS:-1@kafka:9093}
+      KAFKA_CFG_LISTENERS: ${KAFKA_CFG_LISTENERS:-PLAINTEXT://:9092,CONTROLLER://:9093}
+      KAFKA_CFG_ADVERTISED_LISTENERS: ${KAFKA_CFG_ADVERTISED_LISTENERS:-PLAINTEXT://localhost:9092}
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: ${KAFKA_CFG_CONTROLLER_LISTENER_NAMES:-CONTROLLER}
+      ALLOW_PLAINTEXT_LISTENER: ${ALLOW_PLAINTEXT_LISTENER:-yes}
 ```
 
 - `version: '3.8'`: selects compose schema version.
@@ -123,8 +131,8 @@ services:
 - `container_name: kafka`: stable local container name for commands (`docker stop kafka`).
 - `ports:`: declares host/container port mappings.
 - `- "9092:9092"`: exposes broker port to host.
-- `env_file:`: imports environment variables.
-- `- ../.env`: loads root `.env` from `docker/` directory context.
+- `env_file` with `required: false`: allows startup even when `.env` is missing.
+- `environment:` with `${VAR:-default}`: provides built-in defaults for a clean checkout while still allowing overrides through `.env`.
 
 ### 4) `services/producer/config.py`
 
